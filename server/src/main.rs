@@ -66,10 +66,17 @@ async fn register(
             .json(json!({"status": "error", "message": message}));
     }
     
-    let users = query_result
+    let users: Vec<UserModel> = query_result
         .unwrap()
         .iter()
-        .map(|r| UserModel { id: r.id as u32, username: r.username, password: r.password, created_at: r.created_at as DateTime<Utc>, updated_at: Utc::from(r.updated_at)})
+        .map(|r| UserModel { 
+            id: r.id as u32,
+            username: r.username.clone(),
+            password: r.password.clone(),
+            created_at: r.created_at.and_utc(),
+            // created_at: r.created_at as DateTime<Utc>,
+            updated_at: match r.updated_at { Some(t) => Some(t.and_utc()), _ => None },
+        })
         .collect();
     println!("{:?}", users);
     return HttpResponse::Ok().json("");
