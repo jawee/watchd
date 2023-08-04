@@ -1,8 +1,8 @@
 use actix_web::{web::{self, Data}, App, HttpResponse, HttpServer, Responder};
-use chrono::{Utc, DateTime};
+use chrono::{Utc, DateTime, NaiveDateTime};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sqlx::{SqlitePool, FromRow};
+use sqlx::{SqlitePool, FromRow, sqlite::SqliteRow, Row};
 
 async fn manual_hello() -> impl Responder {
     HttpResponse::Ok().body("Hey there!")
@@ -46,6 +46,18 @@ async fn register(
     //     .expect("Failed to create tmpuser");
 
     let username = registration_request.username.clone();
+    // let q = sqlx::query_as!(UserModel,
+    //     r#"SELECT 
+    //     id,
+    //     username,
+    //     password,
+    //     created_at,
+    //     updated_at
+    //     FROM Users 
+    //     WHERE username = $1"#, 
+    //     username)
+    //     .fetch_all(db.get_ref())
+    //     .await;
     let query_result = sqlx::query!(
         r#"SELECT 
         id,
@@ -69,15 +81,16 @@ async fn register(
     let users: Vec<UserModel> = query_result
         .unwrap()
         .iter()
-        .map(|r| UserModel { 
-            id: r.id as u32,
-            username: r.username.clone(),
-            password: r.password.clone(),
-            created_at: r.created_at.and_utc(),
-            // created_at: r.created_at as DateTime<Utc>,
-            updated_at: match r.updated_at { Some(t) => Some(t.and_utc()), _ => None },
-        })
-        .collect();
+        .map(|r| UserModel::try_from(r.clone()).ok())
+        // .map(|r| UserModel { 
+        //     id: r.id as u32,
+        //     username: r.username.clone(),
+        //     password: r.password.clone(),
+        //     created_at: r.created_at.and_utc(),
+        //     // created_at: r.created_at as DateTime<Utc>,
+        //     updated_at: match r.updated_at { Some(t) => Some(t.and_utc()), _ => None },
+        // })
+        .collect::<Vec<_>>();
     println!("{:?}", users);
     return HttpResponse::Ok().json("");
 }
@@ -88,7 +101,20 @@ pub struct RegistrationRequest {
     pub password: String,
 }
 
-#[derive(Debug, FromRow, Deserialize, Serialize)]
+
+// impl FromRow<'_, SqliteRow> for UserModel {
+//     fn from_row(row: &'r SqliteRow) -> Result<Self, sqlx::Error> {
+//         Ok(UserModel { 
+//             id: row.try_get("id")? as u32,
+//             username: (row.try_get("username")? as String).clone(),
+//             password: (row.try_get("password")? as String).clone(),
+//             created_at: (row.try_get("created_at")? as NaiveDateTime).and_utc(),
+//             // created_at: row.created_at as DateTime<Utc>,
+//             updated_at: match (row.try_get("updated_at")? as Option<NaiveDateTime>) { Some(t) => Some(t.and_utc()), _ => None },
+//         })
+//     }
+// }
+#[derive(Debug, Deserialize, Serialize)]
 pub struct UserModel {
     pub id: u32,
     pub username: String,
@@ -96,3 +122,24 @@ pub struct UserModel {
     pub created_at: chrono::DateTime<Utc>,
     pub updated_at: Option<chrono::DateTime<Utc>>,
 }
+
+impl FromRow for UserModel {
+    fn from_row(row: &'r R) -> Result<Self, sqlx::Error> {
+        todo!()
+    }
+}
+
+// impl TryFrom<&Record> for UserModel {
+//     type Error = String;
+//
+//     fn try_from(value: &Record) -> Result<Self, Self::Error> {
+//         todo!()
+//     }
+// }
+// impl TryFrom<Row> for UserModel {
+//     type Error = String;
+//
+//     fn try_from(value: Row) -> Result<Self, Self::Error> {
+//         todo!()
+//     }
+// }
