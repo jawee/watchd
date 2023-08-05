@@ -20,7 +20,6 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .route("/register", web::post().to(register))
             .route("/users", web::get().to(get_users))
-            // .app_data(db_data.clone())
             .app_data(app_state.clone())
     })
     .bind(("127.0.0.1", 8080))?
@@ -49,7 +48,8 @@ async fn get_users(
         let error = query_as_result.err().unwrap();
         println!("{:?}", error);
         let message = "Something exploded";
-        return HttpResponse::InternalServerError().json(json!({"status": "error", "message": message}));
+        return HttpResponse::InternalServerError()
+            .json(json!({"status": "error", "message": message}));
     }
     
     let users = query_as_result.unwrap();
@@ -76,14 +76,14 @@ async fn register(
         .await
         .map_err(|e|
                  {
-                     println!("{:?}", e);
+                     println!("In map_err: {:?}", e);
                      match e {
                          sqlx::Error::Database(dbe) => { 
                              let res = match dbe.is_unique_violation() {
                                  true => "Unique constraint",
                                  _ => "Unknown constraint"
                              };
-                             println!("{}", res);
+                             println!("error str: {}", res);
                              res
                          },
                          _ => {
@@ -95,8 +95,9 @@ async fn register(
     if query.is_err() {
         //TODO: implement error handling
         let err = query.err();
-        println!("{:?}", err);
-        return HttpResponse::InternalServerError().json(json!({"status": "error", "message": err} ));
+        println!("Response err: {:?}", err);
+        return HttpResponse::InternalServerError()
+            .json(json!({"status": "error", "message": err} ));
     }
 
     return HttpResponse::Ok().json("success");
