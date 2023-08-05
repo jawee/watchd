@@ -8,19 +8,25 @@ async fn manual_hello() -> impl Responder {
     HttpResponse::Ok().body("Hey there!")
 }
 
+struct AppState {
+    db: SqlitePool,
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let connection_pool: SqlitePool = SqlitePool::connect("sqlite://sqlite.db")
         .await
         .expect("Couldn't create sqlitepool");
-    let db_data = Data::new(connection_pool.clone());
+
+    let app_state = Data::new(AppState { db: connection_pool });
 
     HttpServer::new(move || {
         App::new()
             .route("/hey", web::get().to(manual_hello))
             .route("/register", web::post().to(register))
             .route("/tmp", web::post().to(create_user_tmp))
-            .app_data(db_data.clone())
+            // .app_data(db_data.clone())
+            .app_data(app_state.clone())
     })
     .bind(("127.0.0.1", 8080))?
     .run()
@@ -28,7 +34,7 @@ async fn main() -> std::io::Result<()> {
 }
 
 async fn create_user_tmp(
-    db: web::Data<SqlitePool>,
+    app_state: Data<AppState>,
     ) -> impl Responder {
     let utc_now = Utc::now();
     println!("{}", utc_now);
@@ -40,7 +46,7 @@ async fn create_user_tmp(
         "somepassword",
         utc_now,
         )
-        .execute(db.get_ref())
+        .execute(&app_state.db)
         .await
         .expect("Failed to create tmpuser");
 
@@ -49,7 +55,7 @@ async fn create_user_tmp(
 
 async fn register(
     registration_request: web::Json<RegistrationRequest>, 
-    db: web::Data<SqlitePool>,
+    app_state: Data<AppState>,
     ) -> impl Responder {
 
     let username = registration_request.username.clone();
@@ -63,47 +69,19 @@ async fn register(
         FROM Users 
         WHERE username = $1"#, 
         username)
-        .fetch_all(db.get_ref())
+        .fetch_all(&app_state.db)
         .await;
-    let query_result = sqlx::query!(
-        r#"SELECT 
-        id,
-        username,
-        password,
-        created_at,
-        updated_at
-        FROM Users 
-        WHERE username = $1"#, 
-        username)
-        .fetch_all(db.get_ref())
-        .await;
-
-    if query_result.is_err() {
-        println!("{:?}", query_result.err());
-        let message = "Something exploded";
-        return HttpResponse::InternalServerError().json(json!({"status": "error", "message": message}));
-    }
 
     if query_as_result.is_err() {
-        println!("{:?}", query_result.err());
+        println!("{:?}", query_as_result.err());
         let message = "Something exploded";
         return HttpResponse::InternalServerError().json(json!({"status": "error", "message": message}));
     }
     
-    let users: Vec<UserModel> = query_result
-        .unwrap()
-        .iter()
-        .map(|r| UserModel { 
-            id: r.id,
-            username: r.username.clone(),
-            password: r.password.clone(),
-            created_at: r.created_at,
-            updated_at: r.updated_at,
-        })
-        .collect::<Vec<_>>();
-    println!("query_result: {:?}", users);
-    println!("query_as_result: {:?}", query_as_result.unwrap());
-    return HttpResponse::Ok().json("");
+    let users = query_as_result.unwrap();
+
+    println!("query_as_result: {:?}", users);
+    return HttpResponse::Ok().json(users);
 }
 
 #[derive(Debug, Serialize, Deserialize)]
