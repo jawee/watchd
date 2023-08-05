@@ -2,7 +2,7 @@ use actix_web::{web::{self, Data}, App, HttpResponse, HttpServer, Responder};
 use chrono::{NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sqlx::{SqlitePool, FromRow, error::ErrorKind};
+use sqlx::{SqlitePool, FromRow, error::ErrorKind, Database};
 
 struct AppState {
     db: SqlitePool,
@@ -48,11 +48,7 @@ async fn get_users(
     if query_as_result.is_err() {
         let error = query_as_result.err().unwrap();
         println!("{:?}", error);
-        // let message = "Something exploded";
-        let message = match error.as_database_error().unwrap().kind() {
-            ErrorKind::UniqueViolation => "Invalid username",
-            _ => "Something exploded",
-        };
+        let message = "Something exploded";
         return HttpResponse::InternalServerError().json(json!({"status": "error", "message": message}));
     }
     
@@ -77,13 +73,30 @@ async fn register(
         utc_now,
         )
         .execute(&app_state.db)
-        .await;
-
+        .await
+        .map_err(|e|
+                 {
+                     println!("{:?}", e);
+                     match e {
+                         sqlx::Error::Database(dbe) => { 
+                             let res = match dbe.is_unique_violation() {
+                                 true => "Unique constraint",
+                                 _ => "Unknown constraint"
+                             };
+                             println!("{}", res);
+                             res
+                         },
+                         _ => {
+                             println!("something bullshit");
+                             "Unknown"
+                         }
+                     }
+                 });
     if query.is_err() {
         //TODO: implement error handling
-        println!("{:?}", query.err());
-        let message = "Something exploded";
-        return HttpResponse::InternalServerError().json(json!({"status": "error", "message": message}));
+        let err = query.err();
+        println!("{:?}", err);
+        return HttpResponse::InternalServerError().json(json!({"status": "error", "message": err} ));
     }
 
     return HttpResponse::Ok().json("success");
