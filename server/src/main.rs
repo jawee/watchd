@@ -2,7 +2,7 @@ use actix_web::{web::{self, Data}, App, HttpResponse, HttpServer, Responder};
 use chrono::{NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sqlx::{SqlitePool, FromRow, error::ErrorKind, Database};
+use sqlx::{SqlitePool, FromRow};
 
 struct AppState {
     db: SqlitePool,
@@ -10,7 +10,7 @@ struct AppState {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let connection_pool: SqlitePool = SqlitePool::connect("sqlite://sqlite.db")
+    let connection_pool = SqlitePool::connect("sqlite://sqlite.db")
         .await
         .expect("Couldn't create sqlitepool");
 
