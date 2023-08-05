@@ -93,13 +93,11 @@ async fn register(
     let users: Vec<UserModel> = query_result
         .unwrap()
         .iter()
-        // .map(|r| UserModel::try_from(r.clone()).ok())
         .map(|r| UserModel { 
             id: r.id,
             username: r.username.clone(),
             password: r.password.clone(),
             created_at: r.created_at,
-            // created_at: r.created_at as DateTime<Utc>,
             updated_at: r.updated_at,
         })
         .collect::<Vec<_>>();
@@ -114,19 +112,6 @@ pub struct RegistrationRequest {
     pub password: String,
 }
 
-
-// impl FromRow<'_, SqliteRow> for UserModel {
-//     fn from_row(row: &'r SqliteRow) -> Result<Self, sqlx::Error> {
-//         Ok(UserModel { 
-//             id: row.try_get("id")? as u32,
-//             username: (row.try_get("username")? as String).clone(),
-//             password: (row.try_get("password")? as String).clone(),
-//             created_at: (row.try_get("created_at")? as NaiveDateTime).and_utc(),
-//             // created_at: row.created_at as DateTime<Utc>,
-//             updated_at: match (row.try_get("updated_at")? as Option<NaiveDateTime>) { Some(t) => Some(t.and_utc()), _ => None },
-//         })
-//     }
-// }
 #[derive(FromRow, Debug, Deserialize, Serialize)]
 pub struct UserModel {
     pub id: i64,
@@ -135,24 +120,3 @@ pub struct UserModel {
     pub created_at: NaiveDateTime,
     pub updated_at: Option<NaiveDateTime>,
 }
-
-// impl FromRow<Row> for UserModel {
-//     fn from_row(row: &'r R) -> Result<Self, sqlx::Error> {
-//         todo!()
-//     }
-// }
-
-// impl TryFrom<&Record> for UserModel {
-//     type Error = String;
-//
-//     fn try_from(value: &Record) -> Result<Self, Self::Error> {
-//         todo!()
-//     }
-// }
-// impl TryFrom<Row> for UserModel {
-//     type Error = String;
-//
-//     fn try_from(value: Row) -> Result<Self, Self::Error> {
-//         todo!()
-//     }
-// }
