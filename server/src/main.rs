@@ -74,24 +74,24 @@ async fn register(
         )
         .execute(&app_state.db)
         .await
-        .map_err(|e|
-                 {
-                     println!("In map_err: {:?}", e);
-                     match e {
-                         sqlx::Error::Database(dbe) => { 
-                             let res = match dbe.is_unique_violation() {
-                                 true => "Unique constraint",
-                                 _ => "Unknown constraint"
-                             };
-                             println!("error str: {}", res);
-                             res
-                         },
-                         _ => {
-                             println!("something bullshit");
-                             "Unknown"
-                         }
-                     }
-                 });
+        .map_err(|e| { 
+            println!("In map_err: {:?}", e);
+            match e {
+                sqlx::Error::Database(dbe) => { 
+                    let res = match dbe.is_unique_violation() {
+                        true => "Unique constraint",
+                        _ => "Unknown constraint"
+                    };
+                    println!("error str: {}", res);
+                    res
+                },
+                _ => {
+                    println!("something bullshit");
+                    "Unknown"
+                }
+            }
+        });
+
     if query.is_err() {
         //TODO: implement error handling
         let err = query.err();
